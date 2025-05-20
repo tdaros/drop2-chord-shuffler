@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drop 2 Chord Shuffler</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            align-items: center;
+        }
+
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            width: 90%;
+            max-width: 700px; /* Increased max-width slightly for new config group */
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .main-display {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 150px; 
+        }
+
+        #chordDisplay {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #007bff;
+            margin: 20px 0;
+            line-height: 1.4;
+            white-space: pre-line;
+        }
+
+        #counterDisplay {
+            font-size: 0.9em;
+            color: #666;
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 8px 4px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:active {
+            background-color: #004085;
+        }
+
+        .config-section {
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            margin-top: auto;
+            width: 100%; 
+            background-color: #f9f9f9;
+            padding: 20px; 
+            box-sizing: border-box; 
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .config-section h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #333;
+            text-align: center; 
+        }
+
+        .config-grid {
+            display: grid;
+            /* Adjusted to fit potentially 6 groups if they wrap well */
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
+            gap: 15px; 
+        }
+
+        .config-group {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            text-align: left; 
+        }
+
+        .config-group h3 {
+            font-size: 1.1em;
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #007bff;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+            cursor: pointer; 
+            user-select: none; 
+        }
+
+        .config-group label {
+            display: block; 
+            margin-bottom: 8px;
+            font-size: 0.95em;
+            cursor: pointer;
+        }
+        
+        .config-group label input[type="checkbox"] { /* More specific selector for checkbox margin */
+            margin-right: 8px;
+            cursor: pointer;
+            transform: scale(1.1);
+            vertical-align: middle; 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="counterDisplay">Permutations generated: 0</div>
+
+    <div class="container">
+        <div class="main-display">
+            <div id="chordDisplay">Press "Generate" to start!</div>
+        </div>
+
+        <div class="controls">
+            <button id="generateButton">Generate Permutation</button>
+        </div>
+
+        <div class="config-section">
+            <h2>Configuration</h2>
+            <div class="config-grid">
+                <div class="config-group" id="rootNoteConfig">
+                    <h3>Root Notes</h3>
+                    </div>
+                <div class="config-group" id="accidentalConfig">
+                    <h3>Accidentals</h3>
+                    </div>
+                <div class="config-group" id="qualityConfig">
+                    <h3>Chord Qualities</h3>
+                    </div>
+                <div class="config-group" id="inversionConfig">
+                    <h3>Inversions</h3>
+                    </div>
+                <div class="config-group" id="setConfig">
+                    <h3>String Sets</h3>
+                    </div>
+                <div class="config-group" id="preferencesConfig">
+                    <h3>Preferences</h3>
+                    <label>
+                        <input type="checkbox" id="simplifyEnharmonicsCheckbox" name="preferences" value="simplify" checked>
+                        Simplify enharmonics (e.g., E# <span aria-hidden="true">→</span> F)
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const config = {
+            rootOptions: ["C", "D", "E", "F", "G", "A", "B"],
+            accidentalOptions: ["#", "b"],
+            qualityOptions: ["M7", "m7", "7", "m7b5", "dim7"],
+            inversionOptions: ["1st Inversion (3)", "2nd Inversion (5)", "3rd Inversion (7)", "Root Inversion (1)"],
+            setOptions: ["Lower Set", "Middle Set", "Higher Set"]
+        };
+
+        const defaultSelections = {
+            rootOptions: ["C", "D", "E", "F", "G", "A", "B"],
+            accidentalOptions: [], 
+            qualityOptions: ["M7", "m7", "7", "m7b5", "dim7"],
+            inversionOptions: ["1st Inversion (3)", "2nd Inversion (5)", "3rd Inversion (7)", "Root Inversion (1)"],
+            setOptions: ["Lower Set", "Middle Set", "Higher Set"]
+        };
+
+        let permutationCounter = 0;
+
+        const chordDisplay = document.getElementById('chordDisplay');
+        const counterDisplay = document.getElementById('counterDisplay');
+        const generateButton = document.getElementById('generateButton');
+
+        function createCheckbox(groupName, optionValue, isChecked) {
+            const label = document.createElement('label');
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.name = groupName;
+            checkbox.value = optionValue;
+            checkbox.checked = isChecked;
+            checkbox.id = `chk-${groupName}-${optionValue.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(` ${optionValue || 'None'}`));
+            return label;
+        }
+
+        function populateConfigOptions() {
+            const rootNoteConfigDiv = document.getElementById('rootNoteConfig');
+            config.rootOptions.forEach(opt => {
+                rootNoteConfigDiv.appendChild(createCheckbox('root', opt, defaultSelections.rootOptions.includes(opt)));
+            });
+
+            const accidentalConfigDiv = document.getElementById('accidentalConfig');
+            config.accidentalOptions.forEach(opt => {
+                accidentalConfigDiv.appendChild(createCheckbox('accidental', opt, defaultSelections.accidentalOptions.includes(opt)));
+            });
+            
+            const qualityConfigDiv = document.getElementById('qualityConfig');
+            config.qualityOptions.forEach(opt => {
+                qualityConfigDiv.appendChild(createCheckbox('quality', opt, defaultSelections.qualityOptions.includes(opt)));
+            });
+
+            const inversionConfigDiv = document.getElementById('inversionConfig');
+            config.inversionOptions.forEach(opt => {
+                inversionConfigDiv.appendChild(createCheckbox('inversion', opt, defaultSelections.inversionOptions.includes(opt)));
+            });
+
+            const setConfigDiv = document.getElementById('setConfig');
+            config.setOptions.forEach(opt => {
+                setConfigDiv.appendChild(createCheckbox('set', opt, defaultSelections.setOptions.includes(opt)));
+            });
+        }
+
+        function getSelectedOptions(groupName) {
+            const selected = [];
+            document.querySelectorAll(`input[name="${groupName}"]:checked`).forEach(checkbox => {
+                selected.push(checkbox.value);
+            });
+            return selected;
+        }
+
+        function simplifyNote(note) {
+            const enharmonics = {
+                "E#": "F", "B#": "C",
+                "Fb": "E", "Cb": "B"
+                // Future: "E##": "F#", "B##": "C#", "Fbb": "Eb", "Cbb": "Bb" if double acc. are added
+            };
+            return enharmonics[note] || note;
+        }
+
+        function generatePermutation() {
+            const activeRoots = getSelectedOptions('root');
+            const activeAccidentals = getSelectedOptions('accidental');
+            const activeQualities = getSelectedOptions('quality');
+            const activeInversions = getSelectedOptions('inversion');
+            const activeSets = getSelectedOptions('set');
+
+            if (!activeQualities.length || !activeRoots.length || !activeInversions.length || !activeSets.length) {
+                chordDisplay.textContent = "Select at least one from each: Root, Quality, Inversion, Set. Accidentals optional.";
+                return;
+            }
+
+            const rawRootAccCombinations = new Set();
+            activeRoots.forEach(root => {
+                rawRootAccCombinations.add(root); 
+                activeAccidentals.forEach(acc => {
+                    rawRootAccCombinations.add(root + acc);
+                });
+            });
+            
+            let processedRootAccCombinations = Array.from(rawRootAccCombinations);
+            
+            const simplifyEnharmonicsCheckbox = document.getElementById('simplifyEnharmonicsCheckbox');
+            if (simplifyEnharmonicsCheckbox && simplifyEnharmonicsCheckbox.checked) {
+                processedRootAccCombinations = processedRootAccCombinations.map(note => simplifyNote(note));
+                // Ensure uniqueness after simplification (e.g., E# -> F, and F was already selected)
+                processedRootAccCombinations = Array.from(new Set(processedRootAccCombinations));
+            }
+
+            if (!processedRootAccCombinations.length) { 
+                chordDisplay.textContent = "No valid root notes available after processing.";
+                return;
+            }
+
+            const allPermutations = [];
+            processedRootAccCombinations.forEach(rootAcc => {
+                activeQualities.forEach(quality => {
+                    activeInversions.forEach(inversion => {
+                        activeSets.forEach(set => {
+                            allPermutations.push([rootAcc, quality, inversion, set]);
+                        });
+                    });
+                });
+            });
+
+            if (allPermutations.length > 0) {
+                const randomPerm = allPermutations[Math.floor(Math.random() * allPermutations.length)];
+                const [rootAcc, quality, inversion, set] = randomPerm;
+                
+                const chordName = rootAcc + quality;
+                chordDisplay.textContent = `${chordName}\n${inversion}\n${set}`;
+
+                permutationCounter++;
+                counterDisplay.textContent = `Permutations generated: ${permutationCounter}`;
+            } else {
+                chordDisplay.textContent = "No permutations available for these selections.";
+            }
+        }
+
+        function initializeConfigTitleToggles() {
+            document.querySelectorAll('.config-group h3').forEach(titleElement => {
+                // Exclude preferences title from this specific toggle-all behavior if desired,
+                // but for now, it won't do anything as there's only one checkbox.
+                // if (titleElement.parentElement.id === 'preferencesConfig') return;
+
+                titleElement.addEventListener('click', function() {
+                    const group = this.parentElement; 
+                    const checkboxes = group.querySelectorAll('input[type="checkbox"]');
+                    
+                    if (checkboxes.length === 0) return;
+
+                    let targetState = false; 
+                    for (const cb of checkboxes) {
+                        if (!cb.checked) {
+                            targetState = true; 
+                            break;
+                        }
+                    }
+
+                    checkboxes.forEach(cb => {
+                        cb.checked = targetState;
+                    });
+                });
+            });
+        }
+
+        // Event Listeners
+        generateButton.addEventListener('click', generatePermutation);
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                if (document.activeElement && document.activeElement.type === 'checkbox' && event.key === ' ') {
+                    return; 
+                }
+                event.preventDefault(); 
+                generatePermutation();
+            }
+        });
+
+        // Initialize
+        populateConfigOptions();
+        initializeConfigTitleToggles(); 
+    </script>
+
+</body>
+</html>
